@@ -1,20 +1,56 @@
 <?php 
 namespace Concrete\Package\UserSelectorAttribute\Attribute\UserSelector;
 
-use Core;
-use Database;
-
 defined('C5_EXECUTE') or die("Access Denied.");
 
-class Controller extends \Concrete\Core\Attribute\Controller  {
+use Concrete\Core\Attribute\FontAwesomeIconFormatter;
+use Concrete\Core\Entity\Attribute\Value\Value\NumberValue;
+use Concrete\Core\Attribute\Controller as AttributeTypeController;
+use Concrete\Core\User\User;
 
-    protected $searchIndexFieldDefinition = array('type' => 'integer', 'options' => array('default' => 0, 'notnull' => false));
+class Controller extends AttributeTypeController
+{
 
-	public function getValue() {
-		$db = Database::connection();
-		$value = $db->GetOne("select value from atUserSelector where avID = ?", array($this->getAttributeValueID()));
-		return $value;	
-	}
+    protected $helpers = ['form/user_selector'];
+    protected $searchIndexFieldDefinition = ['type' => 'integer', 'options' => ['default' => 0, 'notnull' => false]];
+
+    public function getIconFormatter()
+    {
+        return new FontAwesomeIconFormatter('user');
+    }
+
+    public function getAttributeValueClass()
+    {
+        return NumberValue::class;
+    }
+
+    public function validateForm($p)
+    {
+        return $p['value'] != false;
+    }
+
+    public function validateValue()
+    {
+        $val = $this->getAttributeValue()->getValue();
+        return $val !== null && $val !== false;
+    }
+
+    public function createAttributeValue($value)
+    {
+        $av = new NumberValue();
+        $value = ($value == false || $value == '0') ? 0 : $value;
+        $av->setValue($value);
+
+        return $av;
+    }
+
+    public function createAttributeValueFromRequest()
+    {
+        $data = $this->post();
+        if (isset($data['value'])) {
+            return $this->createAttributeValue($data['value']);
+        }
+    }
 	
 	public function searchForm($list) {
 		$PagecID = $this->request('value');
@@ -23,46 +59,37 @@ class Controller extends \Concrete\Core\Attribute\Controller  {
 	}
 	
 	public function search() {
-		$form_selector = Core::make('helper/form/user_selector');
+		$form_selector = $this->app->make('helper/form/user_selector');
 		print $form_selector->selectUser($this->field('value'), $this->request('value'), false);
 	}
 	
 	public function form() {
-		if (is_object($this->attributeValue)) {
-			$value = $this->getAttributeValue()->getValue();
-		}
-		$form_selector = Core::make('helper/form/user_selector');
-		print $form_selector->selectUser($this->field('value'), $value);
-	}
-	
-	public function validateForm($p) {
-		return $p['value'] != 0;
+        if (is_object($this->attributeValue)) {
+            $value = $this->getAttributeValue()->getValue();
+        } else {
+            $value = null;
+        }
+		$this->set('value', $value);
+
 	}
 
-	public function saveValue($value) {
-		$db = Database::connection();
-        if(!intval($value)) {
-            $value = 0;
-        }
-		$db->Replace('atUserSelector', array('avID' => $this->getAttributeValueID(), 'value' => $value), 'avID', true);
-	}
-	
-	public function deleteKey() {
-		$db = Database::connection();
-		$arr = $this->attributeKey->getAttributeValueIDList();
-		foreach($arr as $id) {
-			$db->Execute('delete from atUserSelector where avID = ?', array($id));
-		}
-	}
-	
-	public function saveForm($data) {
-		$db = Database::connection();
+    public function saveForm($data) {
+
 		$this->saveValue($data['value']);
 	}
-	
-	public function deleteValue() {
-		$db = Database::connection();
-		$db->Execute('delete from atUserSelector where avID = ?', array($this->getAttributeValueID()));
-	}
-	
+
+	public function getDisplayValue()
+    {
+        if (is_object($this->attributeValue)) {
+            $value = $this->getAttributeValue()->getValue();
+            $displayValue = User::getByUserID($value)->getUserInfoObject()->getUserDisplayName();
+        } else {
+            $displayValue = null;
+        }
+
+
+        return  $displayValue;
+    }
+
+
 }
