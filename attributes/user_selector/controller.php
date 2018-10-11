@@ -82,7 +82,13 @@ class Controller extends AttributeTypeController
     {
         if (is_object($this->attributeValue)) {
             $value = $this->getAttributeValue()->getValue();
-            $displayValue = User::getByUserID($value)->getUserInfoObject()->getUserDisplayName();
+            $user = User::getByUserID($value);
+            if (is_object($user)) {
+                $displayValue = $user->getUserInfoObject()->getUserDisplayName();
+            } else {
+                $displayValue = null;
+            }
+
         } else {
             $displayValue = null;
         }
